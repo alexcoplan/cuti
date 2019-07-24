@@ -1,0 +1,19 @@
+builddir = build
+cc = clang
+cflags = -g -Wall -Wextra -Wpedantic -Werror -std=c11
+ldflags = -L$builddir
+
+rule cc
+  command = $cc -MMD -MT $out -MF $out.d $cflags -c $in -o $out
+  description = CC $out
+  depfile = $out.d
+  deps = gcc
+
+rule link
+  command = $cc $ldflags -o $out $in
+  description = LINK $out
+
+build $builddir/test.o: cc test.c
+build $builddir/test_test.o: cc test_test.c
+build $builddir/test_test: link $builddir/test_test.o $builddir/test.o
+
