@@ -22,7 +22,7 @@ int test_main(void)
   char *names = strdup(data->names);
   char *tmp = names;
 
-  for (size_t i = 0;; i++) {
+  for (size_t i = 0; i < data->n_fns; i++) {
     char *comma = strchr(tmp, ',');
     if (comma) {
       *comma = '\0';

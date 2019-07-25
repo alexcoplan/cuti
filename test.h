@@ -1,10 +1,15 @@
 #pragma once
 
+#include "macros.h"
+
+#include <stddef.h>
+
 typedef void (*test_fn_t)(void);
 
 typedef struct {
   const char *names;
   const test_fn_t *test_fns;
+  size_t n_fns;
 } test_manifest_t;
 
 #define RUN_TESTS(...)\
@@ -12,6 +17,7 @@ typedef struct {
   const test_manifest_t test_manifest_ = { \
     .names = #__VA_ARGS__, \
     .test_fns = test_fns_, \
+    .n_fns = ARRAY_LENGTH(test_fns_), \
   }; \
   int main(void) { return test_main(); }
 

@@ -36,6 +36,7 @@ size_t utfbuf_overflow(const utfbuf_t *ub);
 
 typedef struct {
   utf_enc_t enc;
+  uint8_t count;
   union {
     uint8_t u8[4];
     uint16_t u16[2];

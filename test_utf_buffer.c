@@ -91,8 +91,43 @@ static void test_simple_ascii(void)
   ASSERT_EQ(buf[3], 0xff);
 }
 
+static void test_utf8_simple(void)
+{
+  uint8_t buf[32];
+  memset(buf, 0xff, sizeof(buf));
+
+  utfbuf_t ub;
+  utfbuf_init(&ub, buf, sizeof(buf), UTF_8);
+
+  ASSERT_EQ(utfbuf_overflow(&ub), 0);
+  ASSERT_EQ(buf[0], 0x0);
+  ASSERT_EQ(buf[1], 0xff);
+
+  const uint8_t e_acute[] = { 0xC3, 0xA9 };
+
+  ASSERT_EQ(utfbuf_write_utf8(&ub, e_acute[0]),
+      UTF_ERROR_SUCCESS);
+
+  ASSERT_EQ(buf[0], 0x0);
+  ASSERT_EQ(buf[1], 0xff);
+
+  ASSERT_EQ(utfbuf_write_utf8(&ub, e_acute[1]),
+      UTF_ERROR_SUCCESS);
+
+  ASSERT_EQ(buf[0], e_acute[0]);
+  ASSERT_EQ(buf[1], e_acute[1]);
+  ASSERT_EQ(buf[2], 0x0);
+  ASSERT_EQ(buf[3], 0xff);
+
+  // TODO: test:
+  //  * truncation
+  //  * error handling and recovery
+  //  * 3- and 4-octet codepoints.
+}
+
 RUN_TESTS(
     test_overflow_base_cases,
     test_overflow_counting,
-    test_simple_ascii
+    test_simple_ascii,
+    test_utf8_simple,
 )

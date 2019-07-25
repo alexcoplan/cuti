@@ -70,12 +70,7 @@ utf_error_t utfbuf_init(utfbuf_t *ub,
 
 static void ub_write_utf8(utfbuf_t *ub)
 {
-  size_t n = 0;
-  while (ub->in.u8[n])
-    n++;
-
-  UTF_DASSERT(n);
-
+  const uint8_t n = ub->in.count;
   const size_t avail = ub_bytes_remaining(ub);
   if (n <= avail) {
     if (ub->pos) {
@@ -101,24 +96,70 @@ static void ub_write_codepoint(utfbuf_t *ub)
   ub->in = (ub_inbuf_t){ 0 };
 }
 
+static uint8_t count_bits_u8(uint8_t byte)
+{
+  uint8_t count = 0;
+  for (uint8_t x = 1 << 7; x > 0; x >>= 1) {
+    if (!(byte & x))
+      return count;
+
+    count += 1;
+  }
+
+  return count;
+}
+
 utf_error_t utfbuf_write_utf8(utfbuf_t *ub, uint8_t byte)
 {
   if (ub->enc != UTF_8) {
     return UTF_ERROR_NOT_IMPLEMENTED;
   }
 
+  const uint8_t count = count_bits_u8(byte);
   if (!ub->in.enc) {
-    if (!(byte & 0x80)) {
-      ub->in.enc = UTF_8;
-      ub->in.u8[0] = byte;
-      ub_write_codepoint(ub);
-      return UTF_ERROR_SUCCESS;
+    switch (count) {
+      case 0: // single-octet codepoint
+        ub->in.enc = UTF_8;
+        ub->in.u8[0] = byte;
+        ub->in.count = 1;
+        ub_write_codepoint(ub);
+        return UTF_ERROR_SUCCESS;
+      case 2:
+      case 3:
+      case 4:
+        ub->in.enc = UTF_8;
+        ub->in.u8[0] = byte;
+        ub->in.count = count;
+        return UTF_ERROR_SUCCESS;
     }
 
-    return UTF_ERROR_NOT_IMPLEMENTED;
+    return UTF_ERROR_INVALID_ARGUMENT;
   }
 
-  return UTF_ERROR_NOT_IMPLEMENTED;
+  if (ub->in.enc != UTF_8) {
+    // Mid-codepoint encoding switch.
+    return UTF_ERROR_INVALID_ARGUMENT;
+  }
+
+  if (count != 1) {
+    // Expected continuation byte.
+    return UTF_ERROR_INVALID_ARGUMENT;
+  }
+
+  size_t i;
+  for (i = 1; ub->in.u8[i]; i++);
+  UTF_RASSERT(i < 4);
+
+  ub->in.u8[i] = byte;
+
+  if (ub->in.count == i+1) {
+    ub_write_codepoint(ub);
+  } else if (ub->in.count > i+1) {
+    // Too many continuation chars.
+    return UTF_ERROR_INVALID_ARGUMENT;
+  }
+
+  return UTF_ERROR_SUCCESS;
 }
 
 size_t utfbuf_overflow(const utfbuf_t *ub)
