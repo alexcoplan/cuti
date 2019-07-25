@@ -19,7 +19,9 @@ int test_main(void)
 {
   const test_manifest_t *data = &test_manifest_;
 
-  char *names = strdup(data->names);
+  char names[1024];
+  snprintf(names, sizeof(names), "%s", data->names);
+
   char *tmp = names;
 
   for (size_t i = 0; i < data->n_fns; i++) {
@@ -44,7 +46,6 @@ int test_main(void)
     tmp = comma + 2;
   }
 
-  free(names);
   return 0;
 }
 
