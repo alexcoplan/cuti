@@ -9,7 +9,7 @@ static void first_test(void)
 
 static void second_test(void)
 {
-  ASSERT_EQ(1, 2);
+  ASSERT_EQ(1, 1);
 }
 
 RUN_TESTS(

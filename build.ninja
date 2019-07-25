@@ -16,9 +16,9 @@ rule link
 # unit test library
 build $builddir/test.o: cc test.c
 build $builddir/test_test.o: cc test_test.c
-build $builddir/test_test: link $builddir/test_test.o $builddir/test.o
+build $builddir/test/test_test: link $builddir/test_test.o $builddir/test.o
 
 # utf buffer
 build $builddir/utf_buffer.o: cc utf_buffer.c
 build $builddir/test_utf_buffer.o: cc test_utf_buffer.c
-build $builddir/test_utf_buffer: link $builddir/test_utf_buffer.o $builddir/utf_buffer.o $builddir/test.o 
+build $builddir/test/test_utf_buffer: link $builddir/test_utf_buffer.o $builddir/utf_buffer.o $builddir/test.o 

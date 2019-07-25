@@ -28,7 +28,7 @@ int test_main(void)
       *comma = '\0';
     }
 
-    fprintf(stderr, "TEST %15s... ", tmp);
+    fprintf(stderr, "TEST %30s... ", tmp);
     data->test_fns[i]();
     if (run_state.failed) {
       fprintf(stderr, "NAY\n");
