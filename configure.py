@@ -80,14 +80,22 @@ class BuildEnv:
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--sanitizers', '--san', dest='sanitizers', default=None)
+  parser.add_argument('--config', default='debug')
   args = parser.parse_args()
   san_flags = get_san_flags(args.sanitizers)
   ninja_vars["cflags"] += san_flags
   ninja_vars["ldflags"] += san_flags
 
+  if args.config == "release":
+    ninja_vars["cflags"] += ' -O3'
+  else:
+    assert args.config == "debug", \
+        "Invalid config %s" % args.config
+
   env = BuildEnv(ninja_vars)
   env.Test('test_test', ['test_test.c'])
-  env.Test('test_utf_buffer', ['test_utf_buffer.c', 'utf_buffer.c'])
+  env.Test('test_utf_buffer',
+      ['test_utf_buffer.c', 'utf_buffer.c'])
 
   with open("build.ninja", "w") as f:
     env.write_ninja(f)
