@@ -138,11 +138,13 @@ utf_error_t utfbuf_write_utf8(utfbuf_t *ub, uint8_t byte)
 
   if (ub->in.enc != UTF_8) {
     // Mid-codepoint encoding switch.
+    ub->in = (ub_inbuf_t){ 0 };
     return UTF_ERROR_INVALID_ARGUMENT;
   }
 
   if (count != 1) {
     // Expected continuation byte.
+    ub->in = (ub_inbuf_t){ 0 };
     return UTF_ERROR_INVALID_ARGUMENT;
   }
 
@@ -152,11 +154,10 @@ utf_error_t utfbuf_write_utf8(utfbuf_t *ub, uint8_t byte)
 
   ub->in.u8[i] = byte;
 
-  if (ub->in.count == i+1) {
+  if (i+1 == ub->in.count) {
     ub_write_codepoint(ub);
-  } else if (ub->in.count > i+1) {
-    // Too many continuation chars.
-    return UTF_ERROR_INVALID_ARGUMENT;
+  } else {
+    UTF_RASSERT(i+1 < ub->in.count);
   }
 
   return UTF_ERROR_SUCCESS;

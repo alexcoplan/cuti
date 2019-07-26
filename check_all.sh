@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 function build() {
   echo "=> Building with options [$@]..." && echo
   ./configure.py $@
