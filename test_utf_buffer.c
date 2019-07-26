@@ -41,7 +41,7 @@ static void test_overflow_counting(void)
 
   ASSERT_EQ(utfbuf_overflow(&ub), 1);
 
-  ASSERT_EQ(utfbuf_write_utf8(&ub, 'a'),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 'a'),
       UTF_ERROR_SUCCESS);
 
   ASSERT_EQ(utfbuf_overflow(&ub), 2);
@@ -55,13 +55,13 @@ static void test_overflow_counting(void)
   ASSERT_EQ(mem[0], 0x0);
   ASSERT_EQ(mem[1], 0xff);
 
-  ASSERT_EQ(utfbuf_write_utf8(&ub, 'a'),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 'a'),
       UTF_ERROR_SUCCESS);
   ASSERT_EQ(mem[0], 0x0);
   ASSERT_EQ(mem[1], 0xff);
   ASSERT_EQ(utfbuf_overflow(&ub), 1);
 
-  ASSERT_EQ(utfbuf_write_utf8(&ub, 'b'),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 'b'),
       UTF_ERROR_SUCCESS);
   ASSERT_EQ(mem[0], 0x0);
   ASSERT_EQ(mem[1], 0xff);
@@ -80,12 +80,12 @@ static void test_simple_ascii(void)
   ASSERT_EQ(buf[0], 0x0);
   ASSERT_EQ(buf[1], 0xff);
 
-  ASSERT_EQ(utfbuf_write_utf8(&ub, 'a'), UTF_ERROR_SUCCESS);
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 'a'), UTF_ERROR_SUCCESS);
   ASSERT_EQ(buf[0], 'a');
   ASSERT_EQ(buf[1], 0x0);
   ASSERT_EQ(buf[2], 0xff);
 
-  ASSERT_EQ(utfbuf_write_utf8(&ub, 'b'), UTF_ERROR_SUCCESS);
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 'b'), UTF_ERROR_SUCCESS);
   ASSERT_EQ(buf[0], 'a');
   ASSERT_EQ(buf[1], 'b');
   ASSERT_EQ(buf[2], 0x0);
@@ -93,7 +93,9 @@ static void test_simple_ascii(void)
 }
 
 static const uint8_t e_acute[] = { 0xC3, 0xA9 };
-static const uint8_t quaver[] = { 0xE2, 0x99, 0xAA };
+static const uint8_t quaver[]  = { 0xE2, 0x99, 0xAA };
+static const char unicorn[] =
+  { 0xF0, 0x9F, 0xA6, 0x84, 0x0 };
 
 static void test_utf8_simple(void)
 {
@@ -108,13 +110,13 @@ static void test_utf8_simple(void)
   ASSERT_EQ(buf[1], 0xff);
 
 
-  ASSERT_EQ(utfbuf_write_utf8(&ub, e_acute[0]),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, e_acute[0]),
       UTF_ERROR_SUCCESS);
 
   ASSERT_EQ(buf[0], 0x0);
   ASSERT_EQ(buf[1], 0xff);
 
-  ASSERT_EQ(utfbuf_write_utf8(&ub, e_acute[1]),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, e_acute[1]),
       UTF_ERROR_SUCCESS);
 
   ASSERT_EQ(buf[0], e_acute[0]);
@@ -129,13 +131,13 @@ static void test_utf8_simple(void)
   ASSERT_EQ(buf[0], 0x0);
   ASSERT_EQ(buf[1], 0xff);
 
-  ASSERT_EQ(utfbuf_write_utf8(&ub, e_acute[0]),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, e_acute[0]),
         UTF_ERROR_SUCCESS);
 
   ASSERT_EQ(buf[0], 0x0);
   ASSERT_EQ(buf[1], 0xff);
 
-  ASSERT_EQ(utfbuf_write_utf8(&ub, e_acute[1]),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, e_acute[1]),
         UTF_ERROR_SUCCESS);
 
   ASSERT_EQ(buf[0], e_acute[0]);
@@ -152,7 +154,7 @@ static void test_utf8_simple(void)
 
   const uint8_t to_write[] = { 'a', e_acute[0], e_acute[1] };
   for (size_t i = 0; i < ARRAY_LENGTH(to_write); i++) {
-    ASSERT_EQ(utfbuf_write_utf8(&ub, to_write[i]),
+    ASSERT_EQ(utfbuf_write_utf8_byte(&ub, to_write[i]),
           UTF_ERROR_SUCCESS);
 
     ASSERT_EQ(buf[0], 'a');
@@ -168,7 +170,7 @@ static void test_utf8_simple(void)
   for (size_t i = 0; i < sizeof(quaver); i++) {
     ASSERT_EQ(buf[0], 0x0);
     ASSERT_EQ(buf[1], 0xff);
-    ASSERT_EQ(utfbuf_write_utf8(&ub, quaver[i]),
+    ASSERT_EQ(utfbuf_write_utf8_byte(&ub, quaver[i]),
         UTF_ERROR_SUCCESS);
   }
 
@@ -177,6 +179,21 @@ static void test_utf8_simple(void)
   ASSERT_EQ(buf[2], quaver[2]);
   ASSERT_EQ(buf[3], 0x0);
   ASSERT_EQ(buf[4], 0xff);
+
+  memset(buf, 0xff, sizeof(buf));
+  utfbuf_init(&ub, buf, sizeof(buf), UTF_8);
+  ASSERT_EQ(utfbuf_write_utf8(&ub, unicorn),
+      UTF_ERROR_SUCCESS);
+
+  ASSERT_EQ(memcmp(unicorn, buf, sizeof(unicorn)), 0);
+  ASSERT_EQ(buf[sizeof(unicorn)], 0xff);
+
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 'a'),
+      UTF_ERROR_SUCCESS);
+  ASSERT_EQ(memcmp(unicorn, buf, sizeof(unicorn)-1), 0);
+  ASSERT_EQ(buf[sizeof(unicorn)-1], 'a');
+  ASSERT_EQ(buf[sizeof(unicorn)], 0x0);
+  ASSERT_EQ(buf[sizeof(unicorn)+1], 0xff);
 }
 
 static void test_utf8_invalid(void)
@@ -188,31 +205,31 @@ static void test_utf8_invalid(void)
   utfbuf_init(&ub, buf, sizeof(buf), UTF_8);
 
   // Invalid character.
-  ASSERT_EQ(utfbuf_write_utf8(&ub, 0xff),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 0xff),
       UTF_ERROR_INVALID_ARGUMENT);
 
   ASSERT_EQ(buf[0], 0x0);
   ASSERT_EQ(buf[1], 0xff);
 
   // Unexpected continuation byte.
-  ASSERT_EQ(utfbuf_write_utf8(&ub, 0x80),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 0x80),
       UTF_ERROR_INVALID_ARGUMENT);
 
   ASSERT_EQ(buf[0], 0x0);
   ASSERT_EQ(buf[1], 0xff);
 
-  ASSERT_EQ(utfbuf_write_utf8(&ub, e_acute[0]),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, e_acute[0]),
       UTF_ERROR_SUCCESS);
 
   // Expect continuation char, but get 'a'.
-  ASSERT_EQ(utfbuf_write_utf8(&ub, 'a'),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 'a'),
       UTF_ERROR_INVALID_ARGUMENT);
 
   ASSERT_EQ(buf[0], 0x0);
   ASSERT_EQ(buf[1], 0xff);
 
   // Now check we can actually write an 'a'.
-  ASSERT_EQ(utfbuf_write_utf8(&ub, 'a'),
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 'a'),
       UTF_ERROR_SUCCESS);
 
   ASSERT_EQ(buf[0], 'a');

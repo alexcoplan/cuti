@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #define UTFDBG(lvl, fmt, ...)\
   fprintf(stderr, fmt "\n", ##__VA_ARGS__);
@@ -109,7 +110,28 @@ static uint8_t count_bits_u8(uint8_t byte)
   return count;
 }
 
-utf_error_t utfbuf_write_utf8(utfbuf_t *ub, uint8_t byte)
+utf_error_t utfbuf_write_utf8(utfbuf_t *ub, const char *str)
+{
+  const bool real_ub = !!ub->size;
+  utf_error_t err;
+
+  for (size_t i = 0; str[i]; i++) {
+    err = utfbuf_write_utf8_byte(ub, str[i]);
+    if (err)
+      return err;
+
+    if (real_ub && utfbuf_overflow(ub)) {
+      // If we're not just a 'byte counting' utfbuf,
+      // and we've overflowed, then refuse to
+      // write any more.
+      return UTF_ERROR_SUCCESS;
+    }
+  }
+
+  return UTF_ERROR_SUCCESS;
+}
+
+utf_error_t utfbuf_write_utf8_byte(utfbuf_t *ub, uint8_t byte)
 {
   if (ub->enc != UTF_8) {
     return UTF_ERROR_NOT_IMPLEMENTED;
