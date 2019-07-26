@@ -18,6 +18,7 @@ static struct {
 int test_main(void)
 {
   const test_manifest_t *data = &test_manifest_;
+  int ret = 0;
 
   char names[1024];
   snprintf(names, sizeof(names), "%s", data->names);
@@ -33,6 +34,7 @@ int test_main(void)
     fprintf(stderr, "TEST %30s... ", tmp);
     data->test_fns[i]();
     if (run_state.failed) {
+      ret |= 1;
       fprintf(stderr, "NAY\n");
       fprintf(stderr, "%s\n", run_state.msg);
       run_state.failed = false;
@@ -46,7 +48,7 @@ int test_main(void)
     tmp = comma + 2;
   }
 
-  return 0;
+  return ret;
 }
 
 void test_fail(const char *fmt, ...)
