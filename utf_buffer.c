@@ -1,13 +1,11 @@
-#include "utf_buffer.h"
+#include "debug.h"
 #include "minmax.h"
+#include "utf_buffer.h"
 
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-#define UTFDBG(lvl, fmt, ...)\
-  fprintf(stderr, fmt "\n", ##__VA_ARGS__);
 
 #define UTF_RASSERT(expr, ...)\
   do { \
@@ -30,23 +28,22 @@ static size_t ub_bytes_remaining(utfbuf_t *ub)
   return ub->size - ub->pos;
 }
 
-static void ub_write_pattern(utfbuf_t *ub,
+static void ub_write_entire_pattern(utfbuf_t *ub,
     uint8_t pat, size_t n)
 {
   const size_t rem = ub_bytes_remaining(ub);
-  const size_t to_memset = min_zu(rem, n);
 
-  if (to_memset) {
-    memset(ub->start + ub->pos, pat, to_memset);
-    ub->pos += to_memset;
+  if (rem >= n) {
+    memset(ub->start + ub->pos, pat, n);
+    ub->pos += n;
+  } else {
+    ub->overflow += (n - rem);
   }
-
-  ub->overflow += (n - to_memset);
 }
 
 static void ub_write_null(utfbuf_t *ub)
 {
-  ub_write_pattern(ub, 0x0, utf_bytes(ub->enc));
+  ub_write_entire_pattern(ub, 0x0, utf_bytes(ub->enc));
 }
 
 utf_error_t utfbuf_init(utfbuf_t *ub,

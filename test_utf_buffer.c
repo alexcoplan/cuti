@@ -1,5 +1,6 @@
 #include "utf_buffer.h"
 #include "test.h"
+#include "debug.h"
 #include "macros.h"
 
 #include <string.h>
@@ -97,6 +98,12 @@ typedef struct {
   uint16_t u16[2];
   uint32_t u32[1];
 } utf_char_t;
+
+static const utf_char_t ascii_a = {
+  .u8  = { 'a' },
+  .u16 = { 'a' },
+  .u32 = { 'a' },
+};
 
 static const utf_char_t e_acute = {
   .u8  = { 0xC3, 0xA9 },
@@ -279,16 +286,56 @@ static void test_utf32_simple(void)
 {
   uint32_t buf32[8];
   utfbuf_t ub;
-  ASSERT_EQ(utfbuf_init(&ub, buf32, sizeof(buf32), UTF_32),
-      UTF_ERROR_SUCCESS);
+
+  const utf_char_t *chars[] = {
+    &ascii_a, &e_acute, &quaver, &unicorn,
+  };
+  for (size_t i = 0; i < ARRAY_LENGTH(chars); i++) {
+    const utf_char_t *cp = chars[i];
+
+    memset(buf32, 0xff, sizeof(buf32));
+    ASSERT_EQ(utfbuf_init(&ub, buf32, sizeof(buf32), UTF_32),
+        UTF_ERROR_SUCCESS);
+
+    for (size_t j = 0; j < utf8_count(cp); j++) {
+      ASSERT_EQ(buf32[0], 0x0);
+      ASSERT_EQ(buf32[1], 0xffffffff);
+
+      ASSERT_EQ(utfbuf_write_utf8_byte(&ub, cp->u8[j]),
+          UTF_ERROR_SUCCESS);
+    }
+
+    ASSERT_EQ(buf32[0], cp->u32[0]);
+    ASSERT_EQ(buf32[1], 0x0);
+    ASSERT_EQ(buf32[2], 0xffffffff);
+  }
+}
+
+static void test_utf32_truncation(void)
+{
+  uint32_t buf32[8];
+  utfbuf_t ub;
 
   memset(buf32, 0xff, sizeof(buf32));
-  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 'a'),
+  ASSERT_EQ(utfbuf_init(&ub, buf32, 3, UTF_32),
       UTF_ERROR_SUCCESS);
 
-  ASSERT_EQ(buf32[0], 'a');
-  ASSERT_EQ(buf32[1], 0x0);
-  ASSERT_EQ(buf32[2], 0xffffffff);
+  ASSERT_EQ(buf32[0], 0xffffffff);
+  ASSERT_EQ(utfbuf_overflow(&ub), 1);
+
+  memset(buf32, 0xff, sizeof(buf32));
+  ASSERT_EQ(utfbuf_init(&ub, buf32, 4, UTF_32),
+      UTF_ERROR_SUCCESS);
+
+  ASSERT_EQ(utfbuf_overflow(&ub), 0);
+  ASSERT_EQ(buf32[0], 0x0);
+  ASSERT_EQ(buf32[1], 0xffffffff);
+
+  ASSERT_EQ(utfbuf_write_utf8_byte(&ub, 'a'),
+      UTF_ERROR_SUCCESS);
+  ASSERT_EQ(utfbuf_overflow(&ub), 4);
+  ASSERT_EQ(buf32[0], 0x0);
+  ASSERT_EQ(buf32[1], 0xffffffff);
 }
 
 RUN_TESTS(
@@ -298,4 +345,5 @@ RUN_TESTS(
     test_utf8_simple,
     test_utf8_invalid,
     test_utf32_simple,
+    test_utf32_truncation,
 )
