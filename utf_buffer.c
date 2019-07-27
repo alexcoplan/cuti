@@ -153,13 +153,13 @@ static uint8_t count_bits_u8(uint8_t byte)
   return count;
 }
 
-utf_error_t utfbuf_write_utf8(utfbuf_t *ub, const char *str)
+utf_error_t utfbuf_write_utf8_string(utfbuf_t *ub, const char *str)
 {
   const bool real_ub = !!ub->size;
   utf_error_t err;
 
   for (size_t i = 0; str[i]; i++) {
-    err = utfbuf_write_utf8_byte(ub, str[i]);
+    err = utfbuf_write_utf8(ub, str[i]);
     if (err)
       return err;
 
@@ -174,7 +174,7 @@ utf_error_t utfbuf_write_utf8(utfbuf_t *ub, const char *str)
   return UTF_ERROR_SUCCESS;
 }
 
-utf_error_t utfbuf_write_utf8_byte(utfbuf_t *ub, uint8_t byte)
+utf_error_t utfbuf_write_utf8(utfbuf_t *ub, uint8_t byte)
 {
   if (ub->enc == UTF_16) {
     return UTF_ERROR_NOT_IMPLEMENTED;

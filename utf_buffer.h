@@ -28,9 +28,12 @@ typedef struct utfbuf utfbuf_t;
 utf_error_t utfbuf_init(utfbuf_t *ub,
     void *mem, size_t mem_size, utf_enc_t encoding);
 
-utf_error_t utfbuf_write_utf8_byte(utfbuf_t *ub, uint8_t byte);
+utf_error_t utfbuf_write_utf8(utfbuf_t *ub, uint8_t byte);
 
-utf_error_t utfbuf_write_utf8(utfbuf_t *ub, const char *str);
+utf_error_t utfbuf_write_utf8_string(utfbuf_t *ub,
+    const char *str);
+
+utf_error_t utfbuf_write_utf32(utfbuf_t *ub, uint32_t ch);
 
 size_t utfbuf_overflow(const utfbuf_t *ub);
 

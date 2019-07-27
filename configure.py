@@ -33,6 +33,8 @@ def get_san_flags(desc):
   sans = desc.split(',')
   for san in sans:
     flags += " -fsanitize=%s" % san
+    if san == "undefined":
+      flags += " -fno-sanitize-recover=undefined"
   return flags
 
 def strip_c_ext(c_file):
