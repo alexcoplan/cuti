@@ -67,15 +67,13 @@ utf_error_t utfbuf_init(utfbuf_t *ub,
   return UTF_ERROR_SUCCESS;
 }
 
-static void ub_write_utf8_of_utf8(utfbuf_t *ub)
+static void write_utf8_internal(utfbuf_t *ub,
+    const uint8_t *u8, uint8_t n)
 {
-  UTF_RASSERT(ub->in.enc == UTF_8); // FIXME
-
-  const uint8_t n = ub->in.count;
   const size_t avail = ub_bytes_remaining(ub);
   if (n <= avail) {
     if (ub->pos) {
-      memcpy(ub->start + ub->pos - 1, ub->in.u8, n);
+      memcpy(ub->start + ub->pos - 1, u8, n);
       ub->pos += n;
       ub->start[ub->pos - 1] = 0x0;
     }
@@ -100,10 +98,41 @@ static void write_utf32_internal(utfbuf_t *ub, uint32_t x)
   }
 }
 
+static const uint8_t utf8_mask_table[] = {
+  0x7f, 0x1f, 0x0f, 0x07,
+};
+
+static void ub_write_utf8_of_utf32(utfbuf_t *ub)
+{
+  uint32_t u32 = ub->in.u32;
+  uint8_t u8[4] = { 0 };
+  uint8_t count, i;
+
+  static const uint32_t limits[] = {
+    0x7f, 0x7ff, 0xffff
+  };
+  for (count = 1; count < 4; count++) {
+    if (u32 < limits[count-1])
+      break;
+  }
+
+  for (i = count; i > 1; i--) {
+    u8[i-1] = 0x80 | (u32 & 0x3f);
+    u32 >>= 6;
+  }
+
+  static const uint8_t top_bits[] = {
+    0x0, 0xc0, 0xe0, 0xf0,
+  };
+
+  i = count-1;
+  u8[0] = top_bits[i] | (u32 & utf8_mask_table[i]);
+
+  write_utf8_internal(ub, u8, count);
+}
+
 static void ub_write_utf32_of_utf8(utfbuf_t *ub)
 {
-  UTF_RASSERT(ub->in.enc == UTF_8); // FIXME
-
   const uint8_t *u8 = ub->in.u8;
   const uint8_t n = ub->in.count;
 
@@ -115,20 +144,16 @@ static void ub_write_utf32_of_utf8(utfbuf_t *ub)
     bits += 6;
   }
 
-  static const uint8_t mask_table[] = {
-    0x7f, 0x1f, 0x0f, 0x07,
-  };
-
-  out |= (u8[0] & mask_table[n-1]) << bits;
+  out |= (u8[0] & utf8_mask_table[n-1]) << bits;
 
   write_utf32_internal(ub, out);
 }
 
-static void ub_write_codepoint(utfbuf_t *ub)
+static void ub_write_utf8_cp(utfbuf_t *ub)
 {
   switch (ub->enc) {
     case UTF_8:
-      ub_write_utf8_of_utf8(ub);
+      write_utf8_internal(ub, ub->in.u8, ub->in.count);
       break;
     case UTF_32:
       ub_write_utf32_of_utf8(ub);
@@ -136,8 +161,36 @@ static void ub_write_codepoint(utfbuf_t *ub)
     default:
       UTF_RASSERT(0, "encoding %u", ub->enc);
   }
+}
 
-  ub->in = (ub_inbuf_t){ 0 };
+static void ub_write_utf32_cp(utfbuf_t *ub)
+{
+  switch (ub->enc) {
+    case UTF_8:
+      ub_write_utf8_of_utf32(ub);
+      break;
+    case UTF_32:
+      write_utf32_internal(ub, ub->in.u32);
+      break;
+    default:
+      UTF_RASSERT(0, "encoding %u", ub->enc);
+  }
+}
+
+static void ub_write_codepoint(utfbuf_t *ub)
+{
+  switch (ub->in.enc) {
+    case UTF_8:
+      ub_write_utf8_cp(ub);
+      break;
+    case UTF_32:
+      ub_write_utf32_cp(ub);
+      break;
+    default:
+      UTF_RASSERT(0, "encoding %u", ub->in.enc);
+  }
+
+  ub->in = (ub_inbuf_t) { 0 };
 }
 
 static uint8_t count_bits_u8(uint8_t byte)
@@ -225,6 +278,19 @@ utf_error_t utfbuf_write_utf8(utfbuf_t *ub, uint8_t byte)
     UTF_RASSERT(i+1 < ub->in.count);
   }
 
+  return UTF_ERROR_SUCCESS;
+}
+
+utf_error_t utfbuf_write_utf32(utfbuf_t *ub, uint32_t ch)
+{
+  if (ub->in.enc) {
+    ub->in = (ub_inbuf_t){ 0 };
+    return UTF_ERROR_INVALID_ARGUMENT;
+  }
+
+  ub->in.enc = UTF_32;
+  ub->in.u32 = ch;
+  ub_write_codepoint(ub);
   return UTF_ERROR_SUCCESS;
 }
 

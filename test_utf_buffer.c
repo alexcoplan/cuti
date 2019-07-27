@@ -282,7 +282,7 @@ static void test_utf8_invalid(void)
   ASSERT_EQ(buf[2], 0xff);
 }
 
-static void test_utf32_simple(void)
+static void test_utf8_to_utf32_simple(void)
 {
   uint32_t buf32[8];
   utfbuf_t ub;
@@ -311,7 +311,7 @@ static void test_utf32_simple(void)
   }
 }
 
-static void test_utf32_truncation(void)
+static void test_utf8_to_utf32_truncation(void)
 {
   uint32_t buf32[8];
   utfbuf_t ub;
@@ -338,12 +338,41 @@ static void test_utf32_truncation(void)
   ASSERT_EQ(buf32[1], 0xffffffff);
 }
 
+static void test_utf32_to_utf8_simple(void)
+{
+  utfbuf_t ub;
+  uint8_t buf[8];
+
+  const utf_char_t *chars[] = {
+    &ascii_a, &e_acute, &quaver, &unicorn,
+  };
+  for (size_t i = 0; i < ARRAY_LENGTH(chars); i++) {
+    const utf_char_t *cp = chars[i];
+
+    memset(buf, 0xff, sizeof(buf));
+    ASSERT_EQ(utfbuf_init(&ub, buf, sizeof(buf), UTF_8),
+        UTF_ERROR_SUCCESS);
+
+    ASSERT_EQ(buf[0], 0x0);
+    ASSERT_EQ(buf[1], 0xff);
+
+    ASSERT_EQ(utfbuf_write_utf32(&ub, cp->u32[0]),
+        UTF_ERROR_SUCCESS);
+
+    const uint8_t count = utf8_count(cp);
+    ASSERT_EQ(memcmp(buf, cp->u8, count), 0);
+    ASSERT_EQ(buf[count], 0x0);
+    ASSERT_EQ(buf[count+1], 0xff);
+  }
+}
+
 RUN_TESTS(
     test_overflow_base_cases,
     test_overflow_counting,
     test_simple_ascii,
     test_utf8_simple,
     test_utf8_invalid,
-    test_utf32_simple,
-    test_utf32_truncation,
+    test_utf8_to_utf32_simple,
+    test_utf8_to_utf32_truncation,
+    test_utf32_to_utf8_simple,
 )
