@@ -45,7 +45,7 @@ typedef struct {
   union {
     uint8_t u8[4];
     uint16_t u16[2];
-    uint32_t u32;
+    uint32_t u32[1];
   };
 } ub_inbuf_t;
 
