@@ -7,22 +7,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define UTF_RASSERT(expr, ...)\
-  do { \
-    if (!(expr)) { \
-      UTFDBG(1, "Assertion failed: " #expr ": " __VA_ARGS__); \
-      abort(); \
-    } \
-  } while(0)
-
-// TODO: disable in release build.
-#define UTF_DASSERT(expr, ...) UTF_RASSERT(expr, __VA_ARGS__)
-
-static uint8_t utf_bytes(utf_enc_t enc)
-{
-  return 1 << (enc - 1);
-}
-
 static size_t ub_bytes_remaining(utfbuf_t *ub)
 {
   return ub->size - ub->pos;
@@ -279,6 +263,51 @@ utf_error_t utfbuf_write_utf8(utfbuf_t *ub, uint8_t byte)
     UTF_RASSERT(i+1 < ub->in.count);
   }
 
+  return UTF_ERROR_SUCCESS;
+}
+
+typedef enum {
+  SURROGATE_NONE = 0,
+  SURROGATE_HIGH = 1,
+  SURROGATE_LOW = 2,
+} surrogate_type_t;
+
+surrogate_type_t get_surrogate(uint16_t cu)
+{
+  if (cu < 0xD800 || cu > 0xDFFF)
+    return SURROGATE_NONE;
+
+  return (cu <= 0xDBFF) ? SURROGATE_HIGH : SURROGATE_LOW;
+}
+
+utf_error_t utfbuf_write_utf16(utfbuf_t *ub, uint16_t cu)
+{
+  const surrogate_type_t surrogate = get_surrogate(cu);
+
+  if (!ub->in.enc) {
+    if (surrogate == SURROGATE_LOW) {
+      // Expected NONE or HIGH.
+      return UTF_ERROR_INVALID_ARGUMENT;
+    }
+
+    ub->in.u16[0] = cu;
+    ub->in.count = 1 + !!surrogate;
+    ub->in.enc = UTF_16;
+
+    if (!surrogate) {
+      ub_write_codepoint(ub);
+    }
+
+    return UTF_ERROR_SUCCESS;
+  }
+
+  if (surrogate != SURROGATE_LOW) {
+    ub->in = (ub_inbuf_t){ 0 };
+    return UTF_ERROR_INVALID_ARGUMENT;
+  }
+
+  ub->in.u16[1] = cu;
+  ub_write_codepoint(ub);
   return UTF_ERROR_SUCCESS;
 }
 

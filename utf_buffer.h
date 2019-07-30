@@ -23,17 +23,34 @@ typedef enum {
   UTF_32 = 3, // LE
 } utf_enc_t;
 
+static inline const char *utf_enc_stringify(utf_enc_t enc)
+{
+  switch (enc) {
+#define C(x) case x: return #x;
+    C(UTF_ENC_NONE)
+    C(UTF_8)
+    C(UTF_16)
+    C(UTF_32)
+#undef C
+  }
+}
+
+static inline uint8_t utf_bytes(utf_enc_t enc)
+{
+  return 1 << (enc - 1);
+}
+
 typedef struct utfbuf utfbuf_t;
 
 utf_error_t utfbuf_init(utfbuf_t *ub,
     void *mem, size_t mem_size, utf_enc_t encoding);
 
-utf_error_t utfbuf_write_utf8(utfbuf_t *ub, uint8_t byte);
+utf_error_t utfbuf_write_utf8(utfbuf_t *ub, uint8_t code_unit);
+utf_error_t utfbuf_write_utf16(utfbuf_t *ub, uint16_t code_unit);
+utf_error_t utfbuf_write_utf32(utfbuf_t *ub, uint32_t code_unit);
 
 utf_error_t utfbuf_write_utf8_string(utfbuf_t *ub,
     const char *str);
-
-utf_error_t utfbuf_write_utf32(utfbuf_t *ub, uint32_t ch);
 
 size_t utfbuf_overflow(const utfbuf_t *ub);
 

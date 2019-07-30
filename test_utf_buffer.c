@@ -123,10 +123,21 @@ static const utf_char_t unicorn = {
   .u32 = { 0x1F984 },
 };
 
+static const utf_char_t *test_chars[] = {
+  &ascii_a, &e_acute, &quaver, &unicorn,
+};
+
 static uint8_t utf8_count(const utf_char_t *uc)
 {
   uint8_t i;
   for (i = 0; i < 4 && uc->u8[i]; i++);
+  return i;
+}
+
+static uint8_t utf16_count(const utf_char_t *uc)
+{
+  uint8_t i;
+  for (i = 0; i < 2 && uc->u16[i]; i++);
   return i;
 }
 
@@ -287,11 +298,8 @@ static void test_utf8_to_utf32_simple(void)
   uint32_t buf32[8];
   utfbuf_t ub;
 
-  const utf_char_t *chars[] = {
-    &ascii_a, &e_acute, &quaver, &unicorn,
-  };
-  for (size_t i = 0; i < ARRAY_LENGTH(chars); i++) {
-    const utf_char_t *cp = chars[i];
+  for (size_t i = 0; i < ARRAY_LENGTH(test_chars); i++) {
+    const utf_char_t *cp = test_chars[i];
 
     memset(buf32, 0xff, sizeof(buf32));
     ASSERT_EQ(utfbuf_init(&ub, buf32, sizeof(buf32), UTF_32),
@@ -343,11 +351,8 @@ static void test_utf32_to_utf8_simple(void)
   utfbuf_t ub;
   uint8_t buf[8];
 
-  const utf_char_t *chars[] = {
-    &ascii_a, &e_acute, &quaver, &unicorn,
-  };
-  for (size_t i = 0; i < ARRAY_LENGTH(chars); i++) {
-    const utf_char_t *cp = chars[i];
+  for (size_t i = 0; i < ARRAY_LENGTH(test_chars); i++) {
+    const utf_char_t *cp = test_chars[i];
 
     memset(buf, 0xff, sizeof(buf));
     ASSERT_EQ(utfbuf_init(&ub, buf, sizeof(buf), UTF_8),
@@ -366,6 +371,104 @@ static void test_utf32_to_utf8_simple(void)
   }
 }
 
+static uint8_t utf_count(const utf_char_t *cp, utf_enc_t enc)
+{
+  switch (enc) {
+    case UTF_8:
+      return utf8_count(cp);
+    case UTF_16:
+      return utf16_count(cp);
+    case UTF_32:
+      return 1;
+    default:
+      UTF_RASSERT(0);
+      return 0;
+  }
+}
+
+static const void *utf_cp_mem(const utf_char_t *cp, utf_enc_t enc)
+{
+  switch (enc) {
+    case UTF_8:
+      return cp->u8;
+    case UTF_16:
+      return cp->u16;
+    case UTF_32:
+      return cp->u32;
+    default:
+      return NULL;
+  }
+}
+
+static void any_char_helper(utf_enc_t dst, utf_enc_t src)
+{
+  uint8_t some_ffs[4];
+  memset(some_ffs, 0xff, sizeof(some_ffs));
+
+  uint8_t some_00s[4];
+  memset(some_00s, 0x0, sizeof(some_00s));
+
+  utfbuf_t ub;
+  uint8_t buf[32];
+
+  size_t i;
+  for (i = 0; i < ARRAY_LENGTH(test_chars); i++) {
+    const utf_char_t *cp = test_chars[i];
+
+    memset(buf, 0xff, sizeof(buf));
+    ASSERT_EQ(utfbuf_init(&ub, buf, sizeof(buf), dst),
+        UTF_ERROR_SUCCESS);
+
+    const uint8_t width = utf_bytes(dst);
+    ASSERT_EQ(memcmp(buf, some_00s, width), 0);
+    ASSERT_EQ(memcmp(buf + width, some_ffs, width), 0);
+
+    const uint8_t count_src = utf_count(cp, src);
+    const uint8_t count_dst = utf_count(cp, dst);
+
+    for (uint8_t j = 0; j < count_src; j++) {
+      switch (src) {
+        case UTF_8:
+          ASSERT_EQ(utfbuf_write_utf8(&ub, cp->u8[j]),
+              UTF_ERROR_SUCCESS);
+          break;
+        case UTF_16:
+          ASSERT_EQ(utfbuf_write_utf16(&ub, cp->u16[j]),
+              UTF_ERROR_SUCCESS);
+          break;
+        case UTF_32:
+          ASSERT_EQ(utfbuf_write_utf32(&ub, cp->u32[j]),
+            UTF_ERROR_SUCCESS);
+          break;
+        default:
+          ASSERT_EQ(1, 2);
+      }
+    }
+
+    const void *cp_mem = utf_cp_mem(cp, dst);
+
+    ASSERT_EQ(memcmp(buf, cp_mem, width * count_dst), 0);
+    ASSERT_EQ(memcmp(buf + width * count_dst, some_00s, width), 0);
+    ASSERT_EQ(memcmp(buf + width * (count_dst+1), some_ffs, width), 0);
+  }
+}
+
+static void test_any_to_any_single_chars(void)
+{
+  for (utf_enc_t dst = UTF_8; dst <= UTF_32; dst++) {
+    for (utf_enc_t src = UTF_8; src <= UTF_32; src++) {
+      if (dst == UTF_16 && src != UTF_16)
+        continue;
+      if (src == UTF_16 && dst != UTF_16)
+        continue;
+
+      any_char_helper(dst, src);
+    }
+  }
+}
+
+// TODO: test invalid UTF-16.
+
 RUN_TESTS(
     test_overflow_base_cases,
     test_overflow_counting,
@@ -375,4 +478,5 @@ RUN_TESTS(
     test_utf8_to_utf32_simple,
     test_utf8_to_utf32_truncation,
     test_utf32_to_utf8_simple,
+    test_any_to_any_single_chars,
 )
