@@ -5,8 +5,7 @@ set -e
 function build() {
   echo "=> Building with options [$@]..." && echo
   ./configure.py $@
-  ./run_tests.sh
-  echo
+  ./run_tests.py
   echo "=> Done config [$@]."
 }
 
