@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 
 cflags  = "-g -Wall -Wextra -Wpedantic -Werror -Wno-gnu-zero-variadic-macro-arguments"
 cflags += "-std=c11 -fcolor-diagnostics"
@@ -49,6 +50,9 @@ class BuildEnv:
     self.progs = []
     self.objs = []
 
+  def IsWindows(self):
+      return os.name == 'nt'
+
   def Program(self, name, src):
     objects = []
     for f in src:
@@ -76,7 +80,8 @@ class BuildEnv:
     fp.write("\n# executables\n")
     for (name, objs) in self.progs:
       obj_line = " ".join(map(lambda x: "$builddir/%s.o" % x, objs))
-      fp.write("build $builddir/%s: link %s\n" % (name, obj_line))
+      ext = ".exe" if self.IsWindows() else ""
+      fp.write("build $builddir/%s%s: link %s\n" % (name, ext, obj_line))
 
 
 if __name__ == '__main__':
